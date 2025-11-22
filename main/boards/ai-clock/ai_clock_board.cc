@@ -7,6 +7,7 @@
 #include "i2c_device.h"
 #include "assets/lang_config.h"
 #include "alarm_manager.h"
+#include "pomodoro_timer.h"
 #include "mcp_server.h"
 #include <cJSON.h>
 
@@ -590,6 +591,86 @@ private:
                 cJSON_free(json_str);
                 cJSON_Delete(json);
                 return std::string("停止播放新闻");
+            });
+        
+        // 番茄钟 - 启动
+        mcp_server.AddTool("self.pomodoro.start",
+            "启动番茄工作法计时器。将循环执行25分钟工作 + 5分钟休息，每4个循环后进行15分钟长休息。屏幕上会显示倒计时。",
+            PropertyList(),
+            [this, &app](const PropertyList& properties) -> ReturnValue {
+                auto& timer = PomodoroTimer::GetInstance();
+                
+                if (timer.IsRunning()) {
+                    return std::string("番茄钟已在运行中");
+                }
+                
+                timer.Start(&app, display_, [](int minutes, int seconds) {
+                    // Callback for each tick (optional)
+                });
+                
+                return std::string("番茄钟已启动，开始25分钟工作");
+            });
+        
+        // 番茄钟 - 暂停/停止
+        mcp_server.AddTool("self.pomodoro.stop",
+            "停止番茄工作法计时器。",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto& timer = PomodoroTimer::GetInstance();
+                
+                if (!timer.IsRunning()) {
+                    return std::string("番茄钟未运行");
+                }
+                
+                timer.Stop();
+                
+                if (display_) {
+                    display_->SetStatus(Lang::Strings::STANDBY);
+                    display_->SetEmotion("neutral");
+                    display_->SetChatMessage("system", "");
+                }
+                
+                return std::string("番茄钟已停止");
+            });
+        
+        // 番茄钟 - 获取状态
+        mcp_server.AddTool("self.pomodoro.get_status",
+            "获取番茄工作法计时器的当前状态。",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto& timer = PomodoroTimer::GetInstance();
+                
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddBoolToObject(json, "is_running", timer.IsRunning());
+                
+                const char* state_name;
+                switch (timer.GetState()) {
+                    case kPomodoroStateWorking:
+                        state_name = "working";
+                        break;
+                    case kPomodoroStateBreak:
+                        state_name = "short_break";
+                        break;
+                    case kPomodoroStateLongBreak:
+                        state_name = "long_break";
+                        break;
+                    default:
+                        state_name = "idle";
+                }
+                
+                cJSON_AddStringToObject(json, "state", state_name);
+                cJSON_AddNumberToObject(json, "loop_count", timer.GetLoopCount());
+                
+                return json;
+            });
+        
+        // 番茄钟 - 获取今日聚焦时间统计
+        mcp_server.AddTool("self.pomodoro.get_daily_focus_time",
+            "获取今天的总聚焦（工作）时间统计。显示总工作时间、小时数、分钟数、秒数以及完成的番茄钟数量。",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto& timer = PomodoroTimer::GetInstance();
+                return timer.GetDailyFocusInfo();
             });
         
         ESP_LOGI(TAG, "AI Clock MCP tools initialized");
