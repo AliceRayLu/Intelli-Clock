@@ -1,0 +1,107 @@
+# macOS 系统文件
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# 构建产物
+build/*
+releases/
+*.bin
+*.elf
+*.map
+*.a
+*.o
+*.obj
+*.d
+*.lst
+*.su
+*.idf
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+*.whl
+
+# ESP-IDF 特定
+sdkconfig.old
+dependencies.lock
+managed_components/
+compile_commands.json
+
+# Python 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 日志文件
+*.log
+*.log.*
+log/
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
+# 测试覆盖率
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.hypothesis/
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 压缩包（如果不需要版本控制）
+*.zip
+*.tar.gz
+*.rar
+
+# 其他
+*.orig
+.cache/
+*.pid
+*.seed
+*.pid.lock
+

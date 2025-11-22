@@ -1,7 +1,7 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
   "idf.espIdfPathWin": "d:\\LeStoreDownload\\esp-idf\\v5.4.3\\esp-idf",
-  "idf.pythonInstallPath": "d:\\LeStoreDownload\\.expressif\\tools\\idf-python\\3.11.2\\python.exe",
+  "idf.pythonInstallPath": "/opt/anaconda3/bin/python",
   "idf.openOcdConfigs": [
     "board/esp32s3-builtin.cfg"
   ],
