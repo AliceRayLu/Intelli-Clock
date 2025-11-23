@@ -678,7 +678,7 @@ private:
         mcp_server.AddTool("self.meditation.start",
             "启动冥想定时器。根据用户是否提及时间设置总时间，如果没有提到时间，默认10分钟。时间结束时播放舒缓铃声唤醒。",
             PropertyList({
-                Property("duration_minutes", kPropertyTypeInteger, 0, 1, 120)  // 0表示使用默认值，最大120分钟
+                Property("duration_minutes", kPropertyTypeInteger, 0, 0, 120)  // 0表示使用默认值，最大120分钟
             }),
             [this, &app](const PropertyList& properties) -> ReturnValue {
                 auto& timer = MeditationTimer::GetInstance();

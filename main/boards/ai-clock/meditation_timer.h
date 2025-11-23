@@ -39,10 +39,12 @@ public:
     }
 
     int GetRemainingMinutes() const {
+        if (!is_running_) return 0;
         return remaining_seconds_ / 60;
     }
 
     int GetRemainingSeconds() const {
+        if (!is_running_) return 0;
         return remaining_seconds_ % 60;
     }
 
