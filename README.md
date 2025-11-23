@@ -53,8 +53,6 @@ The primary mode of interaction is through **voice commands**. Upon running the 
 *   **"Start a Pomodoro timer."**
 *   **"Snooze for 5 minutes."**
 
-Physical buttons/touchscreen are used for primary actions like dismissing alarms.
-
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.

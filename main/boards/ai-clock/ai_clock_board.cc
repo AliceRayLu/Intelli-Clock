@@ -8,6 +8,7 @@
 #include "assets/lang_config.h"
 #include "alarm_manager.h"
 #include "pomodoro_timer.h"
+#include "meditation_timer.h"
 #include "mcp_server.h"
 #include <cJSON.h>
 
@@ -672,6 +673,91 @@ private:
                 auto& timer = PomodoroTimer::GetInstance();
                 return timer.GetDailyFocusInfo();
             });
+
+        // 冥想 - 启动
+        mcp_server.AddTool("self.meditation.start",
+            "启动冥想定时器。根据用户是否提及时间设置总时间，如果没有提到时间，默认10分钟。时间结束时播放舒缓铃声唤醒。",
+            PropertyList({
+                Property("duration_minutes", kPropertyTypeInteger, 0, 1, 120)  // 0表示使用默认值，最大120分钟
+            }),
+            [this, &app](const PropertyList& properties) -> ReturnValue {
+                auto& timer = MeditationTimer::GetInstance();
+                
+                if (timer.IsRunning()) {
+                    return std::string("冥想定时器已在运行中");
+                }
+                
+                int duration_minutes = 0;
+                try {
+                    duration_minutes = properties["duration_minutes"].value<int>();
+                } catch (...) {
+                    duration_minutes = 0;  // 使用默认值
+                }
+                
+                timer.Start(&app, display_, duration_minutes, [](int minutes, int seconds) {
+                    // Callback for each tick (optional)
+                });
+                
+                if (duration_minutes > 0) {
+                    char msg[64];
+                    snprintf(msg, sizeof(msg), "冥想定时器已启动，时长 %d 分钟", duration_minutes);
+                    return std::string(msg);
+                } else {
+                    return std::string("冥想定时器已启动，默认时长 10 分钟");
+                }
+            });
+        
+        // 冥想 - 停止
+        mcp_server.AddTool("self.meditation.stop",
+            "停止冥想定时器。",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto& timer = MeditationTimer::GetInstance();
+                
+                if (!timer.IsRunning()) {
+                    return std::string("冥想定时器未运行");
+                }
+                
+                timer.Stop();
+                
+                if (display_) {
+                    display_->SetStatus(Lang::Strings::STANDBY);
+                    display_->SetEmotion("neutral");
+                    display_->SetChatMessage("system", "");
+                }
+                
+                return std::string("冥想定时器已停止");
+            });
+        
+        // 冥想 - 获取状态
+        mcp_server.AddTool("self.meditation.get_status",
+            "获取冥想定时器的当前状态。",
+            PropertyList(),
+            [this](const PropertyList& properties) -> ReturnValue {
+                auto& timer = MeditationTimer::GetInstance();
+                
+                cJSON* json = cJSON_CreateObject();
+                cJSON_AddBoolToObject(json, "is_running", timer.IsRunning());
+                
+                const char* state_name;
+                switch (timer.GetState()) {
+                    case kMeditationStateRunning:
+                        state_name = "running";
+                        break;
+                    default:
+                        state_name = "idle";
+                }
+                
+                cJSON_AddStringToObject(json, "state", state_name);
+                
+                if (timer.IsRunning()) {
+                    cJSON_AddNumberToObject(json, "remaining_minutes", timer.GetRemainingMinutes());
+                    cJSON_AddNumberToObject(json, "remaining_seconds", timer.GetRemainingSeconds());
+                }
+                
+                return json;
+            });
+
         
         ESP_LOGI(TAG, "AI Clock MCP tools initialized");
     }
