@@ -336,7 +336,7 @@ private:
                 display->SetEmotion("moon");
                 display->SetChatMessage("system", "开始播放助眠音频");
 
-                for (int i = 0; i < 3; i++) {
+                for (int i = 0; i < 2; i++) {
                     app.PlaySound(Lang::Sounds::OGG_SLEEP);
                     vTaskDelay(pdMS_TO_TICKS(100));
                 }
