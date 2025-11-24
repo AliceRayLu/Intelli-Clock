@@ -166,6 +166,13 @@ namespace Lang {
         static_cast<size_t>(ogg_exclamation_end - ogg_exclamation_start)
         };
 
+        extern const char ogg_gentle_start[] asm("_binary_gentle_ogg_start");
+        extern const char ogg_gentle_end[] asm("_binary_gentle_ogg_end");
+        static const std::string_view OGG_GENTLE {
+        static_cast<const char*>(ogg_gentle_start),
+        static_cast<size_t>(ogg_gentle_end - ogg_gentle_start)
+        };
+
         extern const char ogg_low_battery_start[] asm("_binary_low_battery_ogg_start");
         extern const char ogg_low_battery_end[] asm("_binary_low_battery_ogg_end");
         static const std::string_view OGG_LOW_BATTERY {
@@ -178,6 +185,20 @@ namespace Lang {
         static const std::string_view OGG_POPUP {
         static_cast<const char*>(ogg_popup_start),
         static_cast<size_t>(ogg_popup_end - ogg_popup_start)
+        };
+
+        extern const char ogg_sleep_start[] asm("_binary_sleep_ogg_start");
+        extern const char ogg_sleep_end[] asm("_binary_sleep_ogg_end");
+        static const std::string_view OGG_SLEEP {
+        static_cast<const char*>(ogg_sleep_start),
+        static_cast<size_t>(ogg_sleep_end - ogg_sleep_start)
+        };
+
+        extern const char ogg_strong_start[] asm("_binary_strong_ogg_start");
+        extern const char ogg_strong_end[] asm("_binary_strong_ogg_end");
+        static const std::string_view OGG_STRONG {
+        static_cast<const char*>(ogg_strong_start),
+        static_cast<size_t>(ogg_strong_end - ogg_strong_start)
         };
 
         extern const char ogg_success_start[] asm("_binary_success_ogg_start");

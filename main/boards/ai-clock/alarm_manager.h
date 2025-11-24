@@ -100,8 +100,8 @@ private:
     AlarmState sleep_state_ = kAlarmStateDisabled;
     int sleep_snooze_minutes_ = 0;
     int64_t sleep_snooze_until_ = 0;
-    bool sleep_reminder_sent_ = false;  // 是否已发送30分钟前提醒
-    bool sleep_audio_playing_ = false;   // 是否正在播放助眠音频
+    // bool sleep_reminder_sent_ = false;  // 是否已发送30分钟前提醒
+    // bool sleep_audio_playing_ = false;   // 是否正在播放助眠音频
     int64_t sleep_audio_start_time_ = 0; // 助眠音频开始时间
     
     // 新闻播报

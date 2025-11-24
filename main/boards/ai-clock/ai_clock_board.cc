@@ -261,20 +261,29 @@ private:
     }
 
     void InitializeButtons() {
-        boot_button_.OnClick([this]() {
-            auto& app = Application::GetInstance();
+        // 长按：关闭闹钟
+        boot_button_.OnLongPress([this]() {
             auto& alarm_mgr = AlarmManager::GetInstance();
+            auto& app = Application::GetInstance();
             
             // 如果闹钟正在响，则关闭闹钟
             if (alarm_mgr.GetWakeUpAlarmState() == kAlarmStateRinging ||
                 alarm_mgr.GetSleepAlarmState() == kAlarmStateRinging) {
                 alarm_mgr.DismissAlarm();
+                // 关闭闹钟后，让闹钟关闭的回调处理后续操作
+                // 这里直接返回，避免触发其他操作
                 return;
             }
-            
+        });
+        
+        // 双击：切换聊天状态或重置WiFi配置
+        boot_button_.OnDoubleClick([this]() {
+            auto& app = Application::GetInstance();
+        
             if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
                 ResetWifiConfiguration();
             }
+            
             app.ToggleChatState();
         });
     }
@@ -287,16 +296,17 @@ private:
         // 设置闹钟管理器的回调
         alarm_mgr.OnWakeUpAlarmTriggered([&app, &alarm_mgr](AlarmRingIntensity intensity) {
             app.Schedule([&app, &alarm_mgr, intensity]() {
-                // 播放铃声（根据强度，大模型会自动选择铃声）
-                // 这里我们通过 MCP 消息通知服务器播放铃声
-                cJSON* json = cJSON_CreateObject();
-                cJSON_AddStringToObject(json, "type", "alarm");
-                cJSON_AddStringToObject(json, "alarm_type", "wake_up");
-                cJSON_AddStringToObject(json, "intensity", intensity == kAlarmRingIntensityGentle ? "gentle" : "strong");
-                char* json_str = cJSON_PrintUnformatted(json);
-                app.SendMcpMessage(std::string(json_str));
-                cJSON_free(json_str);
-                cJSON_Delete(json);
+                if (intensity == kAlarmRingIntensityGentle) {
+                    for (int i = 0; i < 3; i++) {
+                        app.PlaySound(Lang::Sounds::OGG_GENTLE);
+                        vTaskDelay(pdMS_TO_TICKS(100));
+                    }
+                } else {
+                    for (int i = 0; i < 3; i++) {
+                        app.PlaySound(Lang::Sounds::OGG_STRONG);
+                        vTaskDelay(pdMS_TO_TICKS(100));
+                    }
+                }
                 
                 auto display = Board::GetInstance().GetDisplay();
                 display->SetStatus("闹钟");
@@ -310,26 +320,26 @@ private:
                 auto display = Board::GetInstance().GetDisplay();
                 display->SetStatus("睡眠提醒");
                 display->SetEmotion("moon");
-                display->SetChatMessage("system", "还有30分钟就该睡觉了");
-                app.PlaySound(Lang::Sounds::OGG_POPUP);
+                display->SetChatMessage("system", "还有10分钟就该睡觉了");
+
+                for (int i = 0; i < 3; i++) {
+                    app.PlaySound(Lang::Sounds::OGG_GENTLE);
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                }
             });
         });
         
         alarm_mgr.OnSleepAlarmStart([&app]() {
             app.Schedule([&app]() {
-                // 开始播放助眠音频（舒缓铃声）
-                cJSON* json = cJSON_CreateObject();
-                cJSON_AddStringToObject(json, "type", "alarm");
-                cJSON_AddStringToObject(json, "alarm_type", "sleep_start");
-                char* json_str = cJSON_PrintUnformatted(json);
-                app.SendMcpMessage(std::string(json_str));
-                cJSON_free(json_str);
-                cJSON_Delete(json);
-                
                 auto display = Board::GetInstance().GetDisplay();
                 display->SetStatus("助眠");
                 display->SetEmotion("moon");
                 display->SetChatMessage("system", "开始播放助眠音频");
+
+                for (int i = 0; i < 3; i++) {
+                    app.PlaySound(Lang::Sounds::OGG_SLEEP);
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                }
             });
         });
         
@@ -342,29 +352,12 @@ private:
             });
         });
         
-        alarm_mgr.OnAlarmDismissed([&app, &alarm_mgr](AlarmType type) {
-            app.Schedule([&app, &alarm_mgr, type]() {
+        alarm_mgr.OnAlarmDismissed([&app](AlarmType type) {
+            app.Schedule([&app]() {
                 auto display = Board::GetInstance().GetDisplay();
-                if (type == kAlarmTypeWakeUp) {
-                    // 关闭闹钟后，开始播放新闻
-                    alarm_mgr.StartNewsBroadcast();
-                    display->SetStatus("新闻播报");
-                    display->SetEmotion("newspaper");
-                    display->SetChatMessage("system", "开始播放新闻");
-                    
-                    // 通知服务器开始播放新闻
-                    cJSON* json = cJSON_CreateObject();
-                    cJSON_AddStringToObject(json, "type", "news");
-                    cJSON_AddStringToObject(json, "action", "start");
-                    char* json_str = cJSON_PrintUnformatted(json);
-                    app.SendMcpMessage(std::string(json_str));
-                    cJSON_free(json_str);
-                    cJSON_Delete(json);
-                } else {
-                    display->SetStatus(Lang::Strings::STANDBY);
-                    display->SetEmotion("neutral");
-                    display->SetChatMessage("system", "");
-                }
+                display->SetStatus(Lang::Strings::STANDBY);
+                display->SetEmotion("neutral");
+                display->SetChatMessage("system", "");
             });
         });
         
@@ -413,7 +406,7 @@ private:
         
         // 起床唤醒 - 设置铃声强度
         mcp_server.AddTool("self.alarm.set_wake_up_ring_intensity",
-            "设置起床唤醒铃声强度。intensity: 'gentle' 表示舒缓，'strong' 表示强烈。根据强度，大模型会自动选择合适的铃声。",
+            "设置起床唤醒铃声强度。intensity: 'gentle' 表示舒缓，'strong' 表示强烈。根据强度，会自动选择合适的铃声。",
             PropertyList({
                 Property("intensity", kPropertyTypeString)
             }),
@@ -562,37 +555,6 @@ private:
                 return std::string(msg);
             });
         
-        // 新闻播报 - 开始播放
-        mcp_server.AddTool("self.news.start_broadcast",
-            "开始播放新闻播报。大模型会自动抓取不同类型的新闻（天气、科技、政治、经济）并播放。",
-            PropertyList(),
-            [&alarm_mgr, &app](const PropertyList& properties) -> ReturnValue {
-                alarm_mgr.StartNewsBroadcast();
-                cJSON* json = cJSON_CreateObject();
-                cJSON_AddStringToObject(json, "type", "news");
-                cJSON_AddStringToObject(json, "action", "start");
-                char* json_str = cJSON_PrintUnformatted(json);
-                app.SendMcpMessage(std::string(json_str));
-                cJSON_free(json_str);
-                cJSON_Delete(json);
-                return std::string("开始播放新闻");
-            });
-        
-        // 新闻播报 - 停止播放
-        mcp_server.AddTool("self.news.stop_broadcast",
-            "停止播放新闻播报。",
-            PropertyList(),
-            [&alarm_mgr, &app](const PropertyList& properties) -> ReturnValue {
-                alarm_mgr.StopNewsBroadcast();
-                cJSON* json = cJSON_CreateObject();
-                cJSON_AddStringToObject(json, "type", "news");
-                cJSON_AddStringToObject(json, "action", "stop");
-                char* json_str = cJSON_PrintUnformatted(json);
-                app.SendMcpMessage(std::string(json_str));
-                cJSON_free(json_str);
-                cJSON_Delete(json);
-                return std::string("停止播放新闻");
-            });
         
         // 番茄钟 - 启动
         mcp_server.AddTool("self.pomodoro.start",

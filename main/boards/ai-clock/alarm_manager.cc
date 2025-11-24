@@ -25,7 +25,7 @@ void AlarmManager::StartCheckTimer() {
         };
         ESP_ERROR_CHECK(esp_timer_create(&timer_args, &check_timer_));
     }
-    ESP_ERROR_CHECK(esp_timer_start_periodic(check_timer_, 60000000)); // 每分钟检查一次
+    ESP_ERROR_CHECK(esp_timer_start_periodic(check_timer_, 5000000)); // 每5秒检查一次，提高检测频率
 }
 
 void AlarmManager::StopCheckTimer() {
@@ -71,8 +71,8 @@ bool AlarmManager::SetSleepAlarm(int hour, int minute) {
     sleep_state_ = kAlarmStateEnabled;
     sleep_snooze_minutes_ = 0;
     sleep_snooze_until_ = 0;
-    sleep_reminder_sent_ = false;
-    sleep_audio_playing_ = false;
+    // sleep_reminder_sent_ = false;
+    // sleep_audio_playing_ = false;
     
     SaveConfig();
     ESP_LOGI(TAG, "Sleep alarm set to %02d:%02d", hour, minute);
@@ -117,15 +117,15 @@ void AlarmManager::EnableSleepAlarm(bool enable) {
     if (enable) {
         if (sleep_hour_ >= 0 && sleep_minute_ >= 0) {
             sleep_state_ = kAlarmStateEnabled;
-            sleep_reminder_sent_ = false;
+            // sleep_reminder_sent_ = false;
         } else {
             ESP_LOGW(TAG, "Cannot enable sleep alarm: time not set");
             return;
         }
     } else {
         sleep_state_ = kAlarmStateDisabled;
-        sleep_reminder_sent_ = false;
-        sleep_audio_playing_ = false;
+        // sleep_reminder_sent_ = false;
+        // sleep_audio_playing_ = false;
     }
     SaveConfig();
     ESP_LOGI(TAG, "Sleep alarm %s", enable ? "enabled" : "disabled");
@@ -147,7 +147,7 @@ void AlarmManager::DismissAlarm() {
         sleep_state_ = kAlarmStateDisabled;
         sleep_snooze_minutes_ = 0;
         sleep_snooze_until_ = 0;
-        sleep_audio_playing_ = false;
+        // sleep_audio_playing_ = false;
         if (on_alarm_dismissed_) {
             on_alarm_dismissed_(kAlarmTypeSleep);
         }
@@ -222,48 +222,47 @@ void AlarmManager::CheckAlarms() {
     
     // 检查睡眠提醒
     if (sleep_state_ == kAlarmStateEnabled && sleep_hour_ >= 0 && sleep_minute_ >= 0) {
-        // 计算30分钟前的时间
-        struct tm tm_reminder = *tm_now;
-        tm_reminder.tm_min -= 30;
-        if (tm_reminder.tm_min < 0) {
-            tm_reminder.tm_min += 60;
-            tm_reminder.tm_hour -= 1;
-            if (tm_reminder.tm_hour < 0) {
-                tm_reminder.tm_hour += 24;
+        // 计算睡眠时间的前10分钟作为提醒时间
+        int reminder_hour = sleep_hour_;
+        int reminder_minute = sleep_minute_ - 10;
+        if (reminder_minute < 0) {
+            reminder_minute += 60;
+            reminder_hour -= 1;
+            if (reminder_hour < 0) {
+                reminder_hour += 24;
             }
         }
         
-        // 检查是否到了30分钟前提醒时间
-        if (!sleep_reminder_sent_ && 
-            tm_now->tm_hour == tm_reminder.tm_hour && 
-            tm_now->tm_min == tm_reminder.tm_min) {
-            sleep_reminder_sent_ = true;
-            if (on_sleep_reminder_) {
-                on_sleep_reminder_();
+        // 检查是否到了10分钟前提醒时间
+        if (tm_now->tm_hour == reminder_hour && tm_now->tm_min == reminder_minute) {
+            if (sleep_state_ != kAlarmStateRinging) {
+                sleep_state_ = kAlarmStateRinging;
+                if (on_sleep_reminder_) {
+                    on_sleep_reminder_();
+                }
+                ESP_LOGI(TAG, "Sleep reminder sent (10 minutes before sleep time %02d:%02d)", 
+                        sleep_hour_, sleep_minute_);
             }
-            ESP_LOGI(TAG, "Sleep reminder sent (30 minutes before)");
         }
         
         // 检查是否到了入睡时间
         if (tm_now->tm_hour == sleep_hour_ && tm_now->tm_min == sleep_minute_) {
-            if (!sleep_audio_playing_) {
-                sleep_audio_playing_ = true;
-                sleep_audio_start_time_ = now;
-                if (on_sleep_start_) {
-                    on_sleep_start_();
-                }
-                ESP_LOGI(TAG, "Sleep audio started at %02d:%02d", sleep_hour_, sleep_minute_);
+            sleep_audio_start_time_ = now;
+            if (on_sleep_start_) {
+                on_sleep_start_();
             }
+
+            ESP_LOGI(TAG, "Sleep audio started at %02d:%02d", sleep_hour_, sleep_minute_);
         }
         
-        // 检查助眠音频是否已播放5分钟
-        if (sleep_audio_playing_ && (now - sleep_audio_start_time_) >= 300) {
-            sleep_audio_playing_ = false;
-            if (on_sleep_stop_) {
-                on_sleep_stop_();
-            }
-            ESP_LOGI(TAG, "Sleep audio stopped after 5 minutes");
-        }
+        // // 检查助眠音频是否已播放5分钟
+        // if (sleep_audio_playing_ && (now - sleep_audio_start_time_) >= 300) {
+        //     sleep_audio_playing_ = false;
+        //     if (on_sleep_stop_) {
+        //         on_sleep_stop_();
+        //     }
+        //     ESP_LOGI(TAG, "Sleep audio stopped after 5 minutes");
+        // }
     } else if (sleep_state_ == kAlarmStateSnoozed) {
         if (now >= sleep_snooze_until_) {
             sleep_state_ = kAlarmStateRinging;
@@ -295,15 +294,15 @@ void AlarmManager::OnAlarmDismissed(std::function<void(AlarmType)> callback) {
     on_alarm_dismissed_ = callback;
 }
 
-void AlarmManager::StartNewsBroadcast() {
-    news_broadcasting_ = true;
-    ESP_LOGI(TAG, "News broadcast started");
-}
+// void AlarmManager::StartNewsBroadcast() {
+//     news_broadcasting_ = true;
+//     ESP_LOGI(TAG, "News broadcast started");
+// }
 
-void AlarmManager::StopNewsBroadcast() {
-    news_broadcasting_ = false;
-    ESP_LOGI(TAG, "News broadcast stopped");
-}
+// void AlarmManager::StopNewsBroadcast() {
+//     news_broadcasting_ = false;
+//     ESP_LOGI(TAG, "News broadcast stopped");
+// }
 
 void AlarmManager::SaveConfig() {
     Settings settings("alarm", true);
